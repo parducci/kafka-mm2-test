@@ -5,11 +5,7 @@ Locally testing MM2 with ACLs using docker
 
 ## Step 1: Prepare the Environment
 - Ensure you have Docker and Docker Compose installed on your MacBook.
-- Place all the files above in the same directory.
-
-Make the scripts executable:
-
-```chmod +x start-mirrormaker.sh setup-kafka1.sh setup-kafka2.sh```
+- Clone this repository and navigate inside of it
 
 ## Step 2: Start the Docker Containers
 
