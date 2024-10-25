@@ -1,0 +1,24 @@
+{
+    "name": "mirror-source-connector",
+    "config": {
+      "connector.class": "org.apache.kafka.connect.mirror.MirrorSourceConnector",
+      "tasks.max": "1",
+      "clusters": "source,target",
+      "source.cluster.alias": "kafka1",
+      "source.cluster.bootstrap.servers": "kafka1:9092",
+      "target.cluster.alias": "kafka2",
+      "target.cluster.bootstrap.servers": "kafka2:9094",
+      "kafka1->kafka2.enabled": "true",
+      "kafka2->kafka1.enabled": "false",
+      "topics": "testtopic",
+      "replication.factor": "1",
+      "offset-syncs.topic.replication.factor": "1",
+      "status.storage.replication.factor": "1",
+      "config.storage.replication.factor": "1",
+      "key.converter": "org.apache.kafka.connect.converters.ByteArrayConverter",
+      "value.converter": "org.apache.kafka.connect.converters.ByteArrayConverter",
+      "sync.topic.acls.enabled": "false",
+      "emit.heartbeats.interval.seconds": "5"
+    }
+  }
+  

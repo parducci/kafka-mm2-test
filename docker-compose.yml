@@ -1,0 +1,155 @@
+services:
+  kafka1:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka1
+    ports:
+      - "9092:9092"   # External port for client connections
+    environment:
+      # Enable KRaft mode by specifying process roles
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # https://docs.confluent.io/platform/current/installation/docker/config-reference.html
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: 'LKR3OEVBNTcwNTJENDM5rE'
+
+      # security none
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
+
+      # Unique node ID for the broker
+      KAFKA_NODE_ID: 1
+
+      # Controller quorum voters (single-node in this case)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka1:9093
+
+      # Define listeners for client and controller communication
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093
+
+      # Advertised listeners for clients to connect
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka1:9092
+
+      # Specify which listener is for the controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Directory where Kafka stores its data
+      KAFKA_LOG_DIRS: /var/lib/kafka/data1
+
+      # Number of partitions for internal topics
+      KAFKA_NUM_PARTITIONS: 1
+
+      # Enable automatic topic creation
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    volumes:
+      - ./data1:/var/lib/kafka/data1  # Persist data for kafka1
+    command: sh -c "/etc/confluent/docker/run"
+
+  kafka2:
+    image: confluentinc/cp-kafka:latest
+    container_name: kafka2
+    ports:
+      - "9094:9092"   # External port for client connections
+    environment:
+      # Enable KRaft mode by specifying process roles
+      KAFKA_PROCESS_ROLES: broker,controller
+
+      # Unique node ID for the broker
+      KAFKA_NODE_ID: 2
+
+      # https://docs.confluent.io/platform/current/installation/docker/config-reference.html
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: 'CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT'
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      CLUSTER_ID: 'MkU3OEVBNTcwNTJENDM2Qk'
+
+      # security none
+      KAFKA_ALLOW_EVERYONE_IF_NO_ACL_FOUND: "true"
+
+      # Controller quorum voters (single-node in this case)
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 2@kafka2:9095
+
+      # Define listeners for client and controller communication
+      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9094,CONTROLLER://0.0.0.0:9095
+
+      # Advertised listeners for clients to connect
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka2:9094
+
+      # Specify which listener is for the controller
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+
+      # Directory where Kafka stores its data
+      KAFKA_LOG_DIRS: /var/lib/kafka/data2
+
+      # Number of partitions for internal topics
+      KAFKA_NUM_PARTITIONS: 1
+
+      # Enable automatic topic creation
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    volumes:
+      - ./data2:/var/lib/kafka/data2  # Persist data for kafka2
+    command: sh -c "/etc/confluent/docker/run"
+
+  mm2:
+    image: confluentinc/cp-kafka-connect:latest
+    container_name: mm2
+    ports:
+      - "8083:8083"  # Port for Kafka Connect REST API
+    depends_on:
+      - kafka1
+      - kafka2
+    environment:
+      CONNECT_BOOTSTRAP_SERVERS: "kafka2:9094"
+      CONNECT_REST_PORT: 8083
+      CONNECT_GROUP_ID: "mm2-group"
+      CONNECT_CONFIG_STORAGE_TOPIC: mm2-configs
+      CONNECT_OFFSET_STORAGE_TOPIC: mm2-offsets
+      CONNECT_STATUS_STORAGE_TOPIC: mm2-status
+      CONNECT_KEY_CONVERTER: org.apache.kafka.connect.converters.ByteArrayConverter
+      CONNECT_VALUE_CONVERTER: org.apache.kafka.connect.converters.ByteArrayConverter
+      CONNECT_CONFIG_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_OFFSET_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_STATUS_STORAGE_REPLICATION_FACTOR: 1
+      CONNECT_TOPIC_CONFIG: "cleanup.policy=compact"
+      CONNECT_PLUGIN_PATH: /usr/share/java
+      CONNECT_REST_ADVERTISED_HOST_NAME: mm2
+      # Enable MM2 Connector
+      CONNECTOR_CLASS: org.apache.kafka.connect.mirror.MirrorSourceConnector
+    volumes:
+      - ./mm2-connector.json:/etc/kafka-connect/mm2-connector.json
+    # You'll need to create the topic and then post the connector config (you can login to this docker instance)
+    # kafka-topics --bootstrap-server kafka1:9092 --create --topic testtopic
+    # curl -X POST -H "Content-Type: application/json" --data @/etc/kafka-connect/mm2-connector.json http://localhost:8083/connectors
+    command: '/etc/confluent/docker/run'
+
+  akhq1:
+    image: tchiotludo/akhq
+    container_name: akhq1
+    ports:
+      - "8084:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            kafka1:
+              properties:
+                bootstrap.servers: "kafka1:9092"
+    depends_on:
+      - kafka1
+
+  akhq2:
+    image: tchiotludo/akhq
+    container_name: akhq2
+    ports:
+      - "8085:8080"
+    environment:
+      AKHQ_CONFIGURATION: |
+        akhq:
+          connections:
+            kafka2:
+              properties:
+                bootstrap.servers: "kafka2:9094"
+    depends_on:
+      - kafka2
+
+volumes:
+  data1:
+  data2:
+  connectors:
